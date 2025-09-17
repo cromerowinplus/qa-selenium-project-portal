@@ -5,8 +5,9 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, ElementClickInterceptedException, NoSuchElementException
-from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
+from selenium.webdriver.support.ui import Select
+
 from utils.log_utils import log, log_excel,get_log_file
 from utils.driver_factory import inicializar_driver
 
@@ -418,7 +419,10 @@ def usar_tarjeta(driver, log_file):
     clicarhome(driver,"pageqrpersonal",log_file)
     
 
-    
+def clicar_switch(id, value):
+    element = driver.find_element(By.ID, id)
+    driver.execute_script(f"arguments[0].value = '{value}'; arguments[0].dispatchEvent(new Event('change'))", element)
+
 
 def clicabyid(id, log_file):
     try:
@@ -666,34 +670,38 @@ def compruebatopes(driver, log_file):
 
 
 
-def creasolicitud(driver,log_file):
+def creasolicitud(driver,log_file,es_responsable=""):
     global textoincidenciasolicitud, textocausasolicitud 
-    click_onclick(driver,"button","versolicitud(-1)",log_file)
+    
 
 
     # Clic en el campo "desde" → seleccionar AYER
-    seleccionar_dia_calendario(driver, "sol_fdesde-button", calendariohoy,log_file)
+    seleccionar_dia_calendario(driver, f"sol_{es_responsable}fdesde-button", calendariohoy,log_file)
     
     # Clic en el campo "hasta" → seleccionar MAÑANA
-    seleccionar_dia_calendario(driver, "sol_fhasta-button", calendariomañana,log_file)
+    seleccionar_dia_calendario(driver, f"sol_{es_responsable}fhasta-button", calendariomañana,log_file)
 
     #Clicamos las horas
 
 
-    clicabyid("sol_hfin-button",log_file)
+    clicabyid(f"sol_{es_responsable}hfin-button",log_file)
     clicabyclase("ok",log_file)
 
-    clicabyid("sol_hinicio-button",log_file)
+    clicabyid(f"sol_{es_responsable}hinicio-button",log_file)
     clicabyclase("ok",log_file)
 
     #getElementById("cbx_fsol_incidencia").click();
 
-    clicabyid("cbx_sol_incidencia",log_file)
+    clicabyid(f"cbx_sol_{es_responsable}incidencia",log_file)
     textoincidenciasolicitud=clicar_segundo_boton_combobox(driver,log_file)
-    clicabyid("cbx_sol_causa",log_file)
+    clicabyid(f"cbx_sol_{es_responsable}causa",log_file)
     textocausasolicitud=clicar_segundo_boton_combobox(driver,log_file)
-    escribir_observacion("sol_notas","Observacion escrita desde Selenium",log_file)
+    escribir_observacion(f"sol_{es_responsable}notas","Observacion escrita desde Selenium",log_file)
 
+    if es_responsable:
+        clicar_switch("sol_resp_firmar", "on") 
+        #click_onclick(driver,"a","sol_resp_selpersonal()",log_file)
+        
     guardarsolicitud()
 
 def existe_solicitud(driver, log_file, timeout=10):
@@ -758,6 +766,8 @@ def gestionar_solicitudes(driver,log_file):
     entramodulo(driver, "pagesolicitudes()")
     click_onclick(driver,"a","page_sol_personal_filtro()",log_file)
 
+    click_onclick(driver,"button","versolicitud(-1)",log_file)
+    
     creasolicitud(driver,log_file)
 
     busca_solicitud(driver,log_file)
@@ -1150,22 +1160,25 @@ def clicar_comboboxold_por_texto(driver, texto, log_file=None):
     if log_file: log(f"No se encontró el botón con texto: {texto}", log_file)
     return None
 
-def seleccionar_personal(driver,log_file):
+def seleccionar_personal(driver,log_file,modulo_esresp=""):
     global empresa
     click_onclick(driver,"a","pagefiltro()",log_file)
-    clicabyid("cbx_fempresa",log_file)
+    clicabyid(f"cbx_{modulo_esresp}fempresa",log_file)
     time.sleep(1)
     empresa=clicar_segundocomboold(driver,log_file)
     clicar_combo_ok(driver,log_file)
-    click_onclick(driver,"a","per_findpersonal(1)",log_file)
-    click_onclick(driver,"a","per_sel_all()",log_file)
-    click_onclick(driver,"a","per_add_sel()",log_file)
+    if modulo_esresp =="" :
+        click_onclick(driver,"a","per_findpersonal(1)",log_file)
 
-    if int(obtener_texto_byid(driver,"per_num_selpersonal",log_file))>0:
-        click_onclick(driver,"a","per_clear_sel()",log_file)
-        log_excel("Seleccionar Personal","OK",negrita=True,color_mensaje="verde")
-    else:
-        log_excel("Seleccionar Personal","error, no hay personal",negrita=True,color_mensaje="rojo")
+    click_onclick(driver,"a",f"{modulo_esresp}per_sel_all()",log_file)
+    click_onclick(driver,"a",f"{modulo_esresp}per_add_sel()",log_file)
+
+    if modulo_esresp =="" :
+        if int(obtener_texto_byid(driver,"per_num_selpersonal",log_file))>0:
+            click_onclick(driver,"a","per_clear_sel()",log_file)
+            log_excel("Seleccionar Personal","OK",negrita=True,color_mensaje="verde")
+        else:
+            log_excel("Seleccionar Personal","error, no hay personal",negrita=True,color_mensaje="rojo")
 
 def consultar_acumuladosporpersonal(driver,log_file):
     entramodulo(driver, "pageacumper()")
@@ -1252,6 +1265,79 @@ def presentes(driver,log_file):
 def fichajes_validacion_responsable(driver,log_file):
     solicitar_fichaje_manual(driver,"true", log_file)
 
+def busca_solicitud_responsable(driver,log_file):
+    seleccionar_dia_calendario(driver, "fsoldesde_resp-button", calendariohoy,log_file)
+    
+    # Clic en el campo "hasta" → seleccionar MAÑANA
+    seleccionar_dia_calendario(driver, "fsolhasta_resp-button", calendariomañana,log_file)
+
+
+    clicabyid("cbx_fsol_incidencia_resp",log_file)
+    seleccionar_opcion_combobox(driver, log_file, textoincidenciasolicitud)
+    #seleccionar_opcion_combobox(driver, log_file, "Adelanto en la entrada")
+    
+    #click_onclick(driver,"button","combobox_multi_aceptar('')",log_file)
+    driver.execute_script("document.getElementById('multiselect_ok').click();")
+
+
+    clicabyid("cbx_fsol_solicitud",log_file)
+
+    seleccionar_opcion_combobox(driver, log_file, textocausasolicitud)
+    #seleccionar_opcion_combobox(driver,log_file,"Horas Extra 1")
+
+    driver.execute_script("document.getElementById('multiselect_ok').click();")
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@onclick="getsol_personal()"]'))).click()
+
+    if existe_solicitud(driver,log_file):
+        log("Existe solicitud",log_file)
+        log_excel("Solicitudes Buscar", "Ok", negrita=False,color_mensaje="verde")
+    else:
+        log_excel("Solicitudes Buscar", "Error, no existe", negrita=True,color_mensaje="rojo")
+        log("No existe solicitud",log_file)
+
+    clicarhome(driver,"solicitudes",log_file)
+
+def individual(driver,log_file):
+    click_onclick(driver,"a","filtrosolicitudes('individual')",log_file)
+    busca_solicitud_responsable(driver,log_file)
+
+def abrir_calendario(driver, container_id,log_file, timeout=10):
+    try:
+        wait = WebDriverWait(driver, timeout)
+        boton = wait.until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, f'#{container_id} a.dbOpenButton')
+            )
+        )
+        boton.click()
+        log(f" Calendario en '{container_id}' abierto correctamente.",log_file)
+        return True
+
+    except (TimeoutException, NoSuchElementException, ElementClickInterceptedException) as e:
+        log(f" No se pudo abrir el calendario en '{container_id}': {e}",log_file)
+        log_excel("Abrir calendario", "Error, no existe", negrita=False,color_mensaje="rojo")
+        return False
+        
+
+def creasolicitud_resp(driver,log_file):
+    abrir_calendario(driver, "content_sol_resp_fdesde",log_file)
+    seleccionar_dia_calendarioOLD(driver,calendariohoy)
+
+def añadirmultiple(driver,log_file):
+    click_onclick(driver,"a","sol_add();",log_file)
+    
+    creasolicitud(driver,log_file,"resp_")
+    #creasolicitud_resp(driver,log_file)
+
+def multiples(driver,log_file):
+    añadirmultiple(driver,log_file)
+
+def gestionar_solicitudes_responsable(driver,log_file):
+    entramodulo(driver,"pagesolicitudesresponsables()")
+    multiples(driver,log_file)
+    #individual(driver,log_file)
+
 driver = inicializar_driver()
 with get_log_file() as log_file:
     try:
@@ -1263,9 +1349,11 @@ with get_log_file() as log_file:
         #consultar_acumulados(driver,"true", log_file)
         #consultar_acumuladosporpersonal(driver,log_file)
         #fichajes_validacion_responsable(driver,log_file)
-        presentes(driver,log_file)
+        #presentes(driver,log_file)
+        gestionar_solicitudes_responsable(driver,log_file)
+        
     finally:
-        input("Presiona Enter para cerrar el navegador...")
-        driver.quit()
+        
+        #driver.quit()
         log("Navegador cerrado y prueba finalizada", log_file)
 
