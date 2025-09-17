@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 import os
 
 #Variables globales
-#calendarioayer = datetime.now() - timedelta(days=1)
+#calendarioayer = datetime.now() - timedelta(days=1) 
 calendariohoy = datetime.now() 
 calendariomañana = datetime.now() + timedelta(days=1)
 horaexcel = datetime.now().strftime("%H%M%S")
@@ -1216,34 +1216,35 @@ def click_colectivos(driver,log_file):
         click_checkbox(driver,checkbox_id,log_file)
         time.sleep(0.5)  # Esperar un segundo entre clics para evitar que se haga muy rápido
 
-def verificar_registros_presentes(driver,log_file):
+def verificar_registros_presentes(driver, log_file):
     try:
-        # Esperar a que aparezca al menos un <li> dentro del ul#tpresentes
-        usuarios = WebDriverWait(driver, 10).until(
-            EC.presence_of_all_elements_located((By.ID, "#tpresentes"))
+        # Esperar hasta que aparezca al menos un <li> dentro del ul#tpresentes
+        usuarios = WebDriverWait(driver, 4).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "#tpresentes li"))
         )
 
         if usuarios:
-            log(f"Hay {len(usuarios)} registros de usuarios presentes.",log_file)
+            log(f"Hay {len(usuarios)}  usuarios presentes.", log_file)
+            log_excel("Presentes", "Se han encontrado presentes", negrita=True, color_mensaje="verde")
             return True
         else:
-            log("No hay registros de usuarios presentes.",log_file)
+            log("No hay registros de usuarios presentes.", log_file)
             log_excel("Presentes", "no se han encontrado presentes", negrita=True, color_mensaje="rojo")
             return False
 
     except Exception as e:
-        log(f"Error al verificar registros de usuarios: {e}",log_file)
+        log(f"Error al verificar registros de usuarios: {e}", log_file)
         log_excel("Presentes", "No se han encontrado presentes", negrita=True, color_mensaje="rojo")
         return False
     
 def presentes(driver,log_file):
     entramodulo(driver, "pagefiltropresentes()")
-    #seleccionar_dia_calendario(driver, "fdesde_pre-button", calendariohoy,log_file)
-    #seleccionar_dia_calendario(driver, "fhasta_pre-button", calendariomañana,log_file)
-    #clicabyid("cbx_pre_fempresa",log_file)
-    #clicar_segundocomboold(driver,log_file)
-    #clicar_combo_ok(driver,log_file)
-    #click_colectivos(driver,log_file)
+    seleccionar_dia_calendario(driver, "fdesde_pre-button", calendariohoy,log_file)
+    seleccionar_dia_calendario(driver, "fhasta_pre-button", calendariomañana,log_file)
+    clicabyid("cbx_pre_fempresa",log_file)
+    clicar_segundocomboold(driver,log_file)
+    clicar_combo_ok(driver,log_file)
+    click_colectivos(driver,log_file)
     click_onclick(driver,"button","getpresentes()",log_file)
     verificar_registros_presentes(driver,log_file)
     clicarhome(driver,"pagelistapresentes",log_file)

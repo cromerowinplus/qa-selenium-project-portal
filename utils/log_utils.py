@@ -66,6 +66,8 @@ def log_excel(nombre, mensaje="", negrita=False, color_mensaje="black"):
 
 
 def get_log_file():
-    """Devuelve un archivo de log TXT abierto en modo append."""
-    log_path = os.path.join(REPORTS_DIR, "registro_pruebas.txt")
+    """Devuelve un archivo de log TXT único por ejecución."""
+    fecha = datetime.now().strftime("%Y-%m-%d")
+    hora = datetime.now().strftime("%H%M%S")  # misma lógica que HORA_EXCEL
+    log_path = os.path.join(REPORTS_DIR, f"registro_pruebas_{fecha}_{hora}.txt")
     return open(log_path, "a", encoding="utf-8")
