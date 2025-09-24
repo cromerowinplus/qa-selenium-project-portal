@@ -725,11 +725,20 @@ def creasolicitud(driver,log_file,es_responsable=""):
     guardarsolicitud(es_responsable)
 
 def existe_solicitud(driver, log_file, timeout=10):
-    desde = calendariohoy.strftime("%d-%m-%Y"); hasta = calendariomañana.strftime("%d-%m-%Y")
-    xp = f'//ul[@id="lsolicitudes"]//a[.//div[normalize-space()="Desde: {desde} Hasta: {hasta}"]]'
-    WebDriverWait(driver, timeout).until(EC.presence_of_element_located((By.XPATH, xp)))
-    if log_file: log(f"OK: existe solicitud con fechas {desde} - {hasta}", log_file)
-    return True
+    desde = calendariohoy.strftime("%d-%m-%Y")
+    hasta = calendariomañana.strftime("%d-%m-%Y")
+    
+    xp = f'//ul[@id="lsolicitudes_multiples"]//a[.//div[contains(text(), "Desde: {desde}") and contains(text(), "Hasta: {hasta}")]]'
+    
+    try:
+        WebDriverWait(driver, timeout).until(EC.presence_of_element_located((By.XPATH, xp)))
+        if log_file:
+            log(f"OK: existe solicitud con fechas {desde} - {hasta}", log_file)
+        return True
+    except TimeoutException:
+        if log_file:
+            log(f"ERROR: No se encontró la solicitud con fechas {desde} - {hasta}", log_file)
+        return False
 
 def busca_solicitud(driver,log_file):
     seleccionar_dia_calendario(driver, "fsoldesde-button", calendariohoy,log_file)
@@ -756,6 +765,7 @@ def busca_solicitud(driver,log_file):
     wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@onclick="getsol_personal()"]'))).click()
 
     if existe_solicitud(driver,log_file):
+        
         log("Existe solicitud",log_file)
         log_excel("Solicitudes Buscar", "Ok", negrita=False,color_mensaje="verde")
     else:
@@ -1308,29 +1318,33 @@ def presentes(driver,log_file):
 def fichajes_validacion_responsable(driver,log_file):
     solicitar_fichaje_manual(driver,"true", log_file)
 
-def busca_solicitud_responsable(driver,log_file):
-    seleccionar_dia_calendario(driver, "fsoldesde_resp-button", calendariohoy,log_file)
+def busca_solicitud_responsable(driver,log_file,es_responsable=""):
+    seleccionar_dia_calendario(driver, f"fsoldesde{es_responsable}-button", calendariohoy,log_file)
     
     # Clic en el campo "hasta" → seleccionar MAÑANA
-    seleccionar_dia_calendario(driver, "fsolhasta_resp-button", calendariomañana,log_file)
+    seleccionar_dia_calendario(driver, f"fsolhasta{es_responsable}-button", calendariomañana,log_file)
 
 
-    clicabyid("cbx_fsol_incidencia_resp",log_file)
-    seleccionar_opcion_combobox(driver, log_file, textoincidenciasolicitud)
-    #seleccionar_opcion_combobox(driver, log_file, "Adelanto en la entrada")
+    clicabyid(f"cbx_fsol_incidencia{es_responsable}",log_file)
+    #seleccionar_opcion_combobox(driver, log_file, textoincidenciasolicitud)
+    seleccionar_opcion_combobox(driver, log_file, "Adelanto en la entrada")
     
     #click_onclick(driver,"button","combobox_multi_aceptar('')",log_file)
     driver.execute_script("document.getElementById('multiselect_ok').click();")
 
+    clicabyid(f"cbx_fsol_solicitud{es_responsable}",log_file)
 
-    clicabyid("cbx_fsol_solicitud",log_file)
-
-    seleccionar_opcion_combobox(driver, log_file, textocausasolicitud)
-    #seleccionar_opcion_combobox(driver,log_file,"Horas Extra 1")
-
+    #seleccionar_opcion_combobox(driver, log_file, textocausasolicitud)
+    seleccionar_opcion_combobox(driver,log_file,"Horas Extra 1")
     driver.execute_script("document.getElementById('multiselect_ok').click();")
-    wait = WebDriverWait(driver, 10)
-    wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@onclick="getsol_personal()"]'))).click()
+    
+    if es_responsable:
+        
+        wait = WebDriverWait(driver, 10)
+        wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@onclick="getsol_responsable()"]'))).click()
+    else:
+        wait = WebDriverWait(driver, 10)
+        wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@onclick="getsol_personal()"]'))).click()
 
     if existe_solicitud(driver,log_file):
         log("Existe solicitud",log_file)
@@ -1343,7 +1357,7 @@ def busca_solicitud_responsable(driver,log_file):
 
 def individual(driver,log_file):
     click_onclick(driver,"a","filtrosolicitudes('individual')",log_file)
-    busca_solicitud_responsable(driver,log_file)
+    busca_solicitud_responsable(driver,log_file,"_resp")
 
 def abrir_calendario(driver, container_id,log_file, timeout=10):
     try:
@@ -1367,15 +1381,19 @@ def creasolicitud_resp(driver,log_file):
     abrir_calendario(driver, "content_sol_resp_fdesde",log_file)
     seleccionar_dia_calendarioOLD(driver,calendariohoy)
 
-def añadirmultiple(driver,log_file):
+def añadirmultiples(driver,log_file):
     click_onclick(driver,"a","sol_add();",log_file)
     
     creasolicitud(driver,log_file,"resp_")
     
-    #creasolicitud_resp(driver,log_file)
+def gestionarmultiples(driver,log_file):
+    entramodulo(driver,"filtrosolicitudes('multiple')")
+    #click_onclick(driver,"a","filtrosolicitudes('multiple');",log_file)
+    busca_solicitud_responsable(driver,log_file,"_resp")
 
 def multiples(driver,log_file):
-    añadirmultiple(driver,log_file)
+    #añadirmultiples(driver,log_file)
+    gestionarmultiples(driver,log_file)
 
 def gestionar_solicitudes_responsable(driver,log_file):
     entramodulo(driver,"pagesolicitudesresponsables()")
