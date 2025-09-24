@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException,StaleElementReferenceException
 from selenium.webdriver.support.ui import Select
 
 from utils.log_utils import log, log_excel,get_log_file
@@ -612,14 +612,22 @@ def click_onclick(driver, tipo,onclick_value, log_file, timeout=10):
         log_excel("Error",f"No se ha podido clicar el boton {onclick_value}",negrita=False,color_mensaje="rojo")
         return False
 
-def guardarsolicitud():
-            # Clicamos boton guardar)
-    xpath_mas_selectivo = "(//button[@onclick='savesolicitud()' and not(@disabled) and " \
-                          "not(contains(@class,'ui-state-disabled')) and " \
-                          "not(contains(@style,'display: none')) and " \
-                          "not(contains(@style,'visibility: hidden'))])[last()]"
-    WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, xpath_mas_selectivo))).click()
-    #Clicamos en el popup de "Si"
+def guardarsolicitud(es_responsable):
+    # Clicamos boton guardar)
+    
+    if es_responsable:
+        xpath_mas_selectivo = "(//button[@onclick='sol_resp_save()' and not(@disabled) and " \
+                            "not(contains(@class,'ui-state-disabled')) and " \
+                            "not(contains(@style,'display: none')) and " \
+                            "not(contains(@style,'visibility: hidden'))])[last()]"
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, xpath_mas_selectivo))).click()
+    else:
+        xpath_mas_selectivo = "(//button[@onclick='savesolicitud()' and not(@disabled) and " \
+                            "not(contains(@class,'ui-state-disabled')) and " \
+                            "not(contains(@style,'display: none')) and " \
+                            "not(contains(@style,'visibility: hidden'))])[last()]"
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, xpath_mas_selectivo))).click()
+        #Clicamos en el popup de "Si"
     clicar_si(driver,"button","dialogbox_response(1)",log_file,"Solicitudes- Nueva")
 
 
@@ -690,7 +698,7 @@ def creasolicitud(driver,log_file,es_responsable=""):
     clicabyid(f"sol_{es_responsable}hinicio-button",log_file)
     clicabyclase("ok",log_file)
 
-    #getElementById("cbx_fsol_incidencia").click();
+
 
     clicabyid(f"cbx_sol_{es_responsable}incidencia",log_file)
     textoincidenciasolicitud=clicar_segundo_boton_combobox(driver,log_file)
@@ -700,9 +708,21 @@ def creasolicitud(driver,log_file,es_responsable=""):
 
     if es_responsable:
         clicar_switch("sol_resp_firmar", "on") 
-        #click_onclick(driver,"a","sol_resp_selpersonal()",log_file)
-        
-    guardarsolicitud()
+        click_onclick(driver,"a","sol_resp_selpersonal()",log_file)
+        click_onclick(driver,"a","sol_resp_findpersonal(1)",log_file)
+
+        campo_busqueda = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.CSS_SELECTOR, "div.ui-input-search input[data-type='search']"))
+        )
+        campo_busqueda.clear()
+        campo_busqueda.send_keys("Maria")
+        campo_busqueda.send_keys(Keys.RETURN)
+        time.sleep(1)
+        clicar_primer_registro_solicitud(driver, log_file)
+        click_onclick(driver,"a","sol_resp_add_sel()",log_file)
+        click_onclick(driver,"a","gotonext('#page_solicitudes_nuevas');",log_file)
+
+    guardarsolicitud(es_responsable)
 
 def existe_solicitud(driver, log_file, timeout=10):
     desde = calendariohoy.strftime("%d-%m-%Y"); hasta = calendariomañana.strftime("%d-%m-%Y")
@@ -1046,6 +1066,29 @@ def clicar_primer_registro(driver,tituloexcel,negrita, log_file):
         log_excel(f"{tituloexcel}", "Error - No existen registros", negrita, "rojo")
 
 
+def clicar_primer_registro_solicitud(driver, log_file):
+    espera = WebDriverWait(driver, 10)
+    try:
+        # Buscamos si existe la lista en el DOM
+        if len(driver.find_elements(By.CSS_SELECTOR, "#sol_resp_selpersonal")) > 0:
+            # Seleccionamos el primer label dentro del contenedor de los checkboxes visibles
+            selector = "#sol_resp_selpersonal div.ui-checkbox:not(.ui-screen-hidden) label"
+        else:
+            log("No se encontró lista de checkboxes en el DOM.",log_file)
+            return
+
+        # Esperamos a que el primer label sea clickeable
+        primer_label = espera.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, selector))
+        )
+
+        # Hacemos clic en el primer label (lo que marcará el checkbox asociado)
+        primer_label.click()
+        log("Se ha marcado el primer checkbox.",log_file)
+
+    except Exception as e:
+        log(f"Error al seleccionar el primer checkbox: {e}",log_file)
+
 def seleccionar_personal_desplegable(driver,idcampotexto,log_file):
     nombrebusqueda="maria"
     escribir_observacion(idcampotexto,nombrebusqueda,log_file)
@@ -1328,6 +1371,7 @@ def añadirmultiple(driver,log_file):
     click_onclick(driver,"a","sol_add();",log_file)
     
     creasolicitud(driver,log_file,"resp_")
+    
     #creasolicitud_resp(driver,log_file)
 
 def multiples(driver,log_file):
